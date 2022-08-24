@@ -1,20 +1,39 @@
-# functions needing to test
-#get-oktadevicesall (for pagination)
-#get-oktadevicesbysearch (for filter syntax)
-# get-oktazone, get-oktazonesall
-# threatinsight and zones, up next
 
-function Add-OktaNewZoneBlock{
 
-}
+#function Add-OktaNewZoneBlock{
+#
+#}
 
-function Add-OktaNewZoneIP{
+#function Add-OktaNewZoneIP{
+   <#
+#    .SYNOPSIS
+        Creates a new Zone using IP addressing
+#    .DESCRIPTION
+#        Creates a new Zone using IP addressing
+#    .NOTES
+        This function can accept either CIDR or dash notation (see examples)
+        Either gateways or proxies *must* be defined. Note the parameter "gateways" and "proxies" are integer values for the total
+#    .EXAMPLE
+        Add-OktaNewZoneIP -DeviceID "abblababl"
+        #>
+        
+#        param(
 
-}
+#            [parameter(Mandatory=$true)][string]$DeviceID,
+#            [parameter(Mandatory=$true)][int]$ProxyCount,
+#            [parameter(Mandatory=$true)][int]$GatewayCount
 
-function Add-OktaNewZoneDynamic{
+#            )
+            
+#            $device = Invoke-WebRequest -uri "https://$global:target.okta.com/api/v1/zones" -headers $global:headers -method 'POST' | ConvertFrom-Json
+        
+#            return $device
+        
+#}
 
-}
+#function Add-OktaNewZoneDynamic{
+#
+#}
 
 function Get-OktaZone{
 <#
@@ -32,9 +51,9 @@ function Get-OktaZone{
             [parameter(Mandatory=$true)][string]$ZoneID
             )
         
-            $device = Invoke-WebRequest -uri "https://$global:target.okta.com/api/v1/zones/$zoneid" -headers $global:headers | ConvertFrom-Json
+            $zone = Invoke-WebRequest -uri "https://$global:target.okta.com/api/v1/zones/$zoneid" -headers $global:headers | ConvertFrom-Json
         
-            return $device
+            return $zone
 }
 
 function Get-OktaZonesAll{
@@ -310,6 +329,105 @@ function Set-OktaDeviceUnSuspended{
         
             return $device
         
+
+}
+
+function Get-OktaUsersAll {
+    <#
+    .SYNOPSIS
+        Returns all users in an array
+    .DESCRIPTION
+        Returns all users in an array
+    .NOTES
+        Due to pagination constraints, this may take some time to run if a large number of users are returned, as this function aggregates all pages into a single array before displaying
+    #>
+
+    $results = Invoke-WebRequest -uri "https://$global:target.okta.com/api/v1/users" -headers $global:headers
+    $values2 = $values2+($results|convertfrom-json)
+    if ($results.headers.link.count -eq 2) {
+
+        DO
+        {
+            $nextlink = $results.headers.link[1].split(";")[0]
+            $nextlink2 = $nextlink.substring(1,$nextlink.length-2)
+            $results = Invoke-WebRequest -uri $nextlink2 -Headers $global:headers
+            $values2=$values2+($results|convertfrom-json)
+        } Until ($results.headers.link.count -eq 1)
+        return $values2
+    }
+
+ 
+    return $results | ConvertFrom-Json
+}
+
+function Get-OktaUsersAlltoCSV {
+    <#
+    .SYNOPSIS
+        Returns all users in a CSV
+    .DESCRIPTION
+        Returns all users in a CSV
+    .NOTES
+        Due to pagination constraints, this may take some time to run if a large number of users are returned, as this function aggregates all pages into a single array before displaying
+    #>
+
+    param(
+            [parameter(Mandatory=$true)][string]$CSVOutputPath
+            )
+          
+
+    $results = Invoke-WebRequest -uri "https://$global:target.okta.com/api/v1/users" -headers $global:headers
+    $values2 = $values2+($results|convertfrom-json)
+    if ($results.headers.link.count -eq 2) {
+
+        DO
+        {
+            $nextlink = $results.headers.link[1].split(";")[0]
+            $nextlink2 = $nextlink.substring(1,$nextlink.length-2)
+            $results = Invoke-WebRequest -uri $nextlink2 -Headers $global:headers
+            $values2=$values2+($results|convertfrom-json)
+        } Until ($results.headers.link.count -eq 1)
+        
+        $values2|export-csv $CSVOutputPath
+        return $values2
+    }
+
+
+    $results|export-csv $csvoutputpath
+    return $results | ConvertFrom-Json
+
+}
+
+
+
+function Add-OktaNewUser {
+    <#
+    .SYNOPSIS
+        Create a new user
+    .DESCRIPTION
+        Create a new user
+    .NOTES
+        Create a new user. This is limited in capability at the moment
+            #>
+    
+            param(
+
+            [parameter(Mandatory=$true)][string]$FirstName,
+            [parameter(Mandatory=$true)][string]$LastName
+            #[parameter(Mandatory=$true)][string]$Email
+
+            )
+
+            $profile = @{
+                "firstName" =$FirstName
+                "lastName" = $LastName
+                "email" = $FirstName + "."+ $LastName + "@segovillage.local"
+                "login" = $FirstName + "."+ $LastName + "@segovillage.local"
+            }
+            $body = @{
+                "profile" = $profile
+            }
+            $results = Invoke-WebRequest -uri "https://$global:target.okta.com/api/v1/users" -body ($body|convertto-json) -method POST -headers $global:headers
+
 
 }
 
